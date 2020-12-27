@@ -1,0 +1,100 @@
+use rand::{rngs::SmallRng, Rng, SeedableRng};
+
+fn main() {
+    let mut coin = Coin::new();
+    for n in 2..32768 {
+        test(&mut coin, n);
+    }
+}
+
+const TIMES: u32 = 100000;
+
+fn test(coin: &mut Coin, n: u32) {
+    println!("--- n = {} ---", n);
+    let mut total = 0;
+    for _ in 0..TIMES {
+        let (_, cnt) = coin_rand_optimized(coin, n);
+        total += cnt;
+    }
+    let avg = total as f64 / TIMES as f64;
+    let e = calc_expectation(n);
+    let delta = (avg - e).abs();
+    println!("average: {}, expectation: {}, delta: {}", avg, e, delta);
+}
+
+fn calc_expectation(n: u32) -> f64 {
+    let mut t = n - 1;
+    let bit_cnt = 32 - t.leading_zeros();
+    let mut p = 0f64;
+    let mut de = 0f64;
+    for i in (2..=bit_cnt).rev() {
+        if t & 1 == 0 {
+            let dp = 1f64 / (1 << i) as f64;
+            p += dp;
+        }
+        t >>= 1;
+    }
+    t = n - 1;
+    for i in (2..=bit_cnt).rev() {
+        if t & 1 == 0 {
+            let dp = 1f64 / (1 << i) as f64;
+            de += dp / p * i as f64;
+        }
+        t >>= 1;
+    }
+    return bit_cnt as f64 + p * de / (1f64 - p);
+}
+
+fn coin_rand_optimized(coin: &mut Coin, n: u32) -> (u32, u32) {
+    let n = n - 1;
+    let bit_cnt = 32 - n.leading_zeros();
+    let mut cnt = 0u32;
+    'outer: loop {
+        let mut res = 0;
+        let mut less = false;
+        for i in (0..bit_cnt).rev() {
+            cnt += 1;
+            let b = coin.flip();
+            if !less {
+                let mask = 1 << i;
+                if n & mask != 0 {
+                    if !b {
+                        less = true;
+                    }
+                } else if b {
+                    continue 'outer;
+                }
+            }
+            res |= (b as u32) << i;
+        }
+        return (res, cnt);
+    }
+}
+
+fn _coin_rand_unoptimized(coin: &mut Coin, n: u32) -> (u32, u32) {
+    let n = n - 1;
+    let bit_cnt = 32 - n.leading_zeros();
+    let mut cnt = 0u32;
+    loop {
+        let mut res = 0;
+        for i in 0..bit_cnt {
+            cnt += 1;
+            res |= (coin.flip() as u32) << i;
+        }
+        if res <= n {
+            return (res, cnt);
+        }
+    }
+}
+
+struct Coin(SmallRng);
+
+impl Coin {
+    fn new() -> Coin {
+        Coin(SmallRng::from_entropy())
+    }
+
+    fn flip(&mut self) -> bool {
+        self.0.gen()
+    }
+}
