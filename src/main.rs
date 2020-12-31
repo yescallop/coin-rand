@@ -23,26 +23,17 @@ fn test(coin: &mut Coin, n: u32) {
 }
 
 fn calc_expectation(n: u32) -> f64 {
-    let mut t = n - 1;
+    let t = n - 1;
     let bit_cnt = 32 - t.leading_zeros();
-    let mut p = 0f64;
-    let mut de = 0f64;
+    let mut sum = 0;
+    let mut mask = 1;
     for i in (2..=bit_cnt).rev() {
-        if t & 1 == 0 {
-            let dp = 1f64 / (1 << i) as f64;
-            p += dp;
+        if t & mask == 0 {
+            sum += mask * i;
         }
-        t >>= 1;
+        mask <<= 1;
     }
-    t = n - 1;
-    for i in (2..=bit_cnt).rev() {
-        if t & 1 == 0 {
-            let dp = 1f64 / (1 << i) as f64;
-            de += dp / p * i as f64;
-        }
-        t >>= 1;
-    }
-    return bit_cnt as f64 + p * de / (1f64 - p);
+    return bit_cnt as f64 + sum as f64 / n as f64;
 }
 
 fn coin_rand_optimized(coin: &mut Coin, n: u32) -> (u32, u32) {
